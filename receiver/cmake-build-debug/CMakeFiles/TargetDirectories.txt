@@ -1,0 +1,3 @@
+/home/jvlk/projekty/dnstunnel/receiver/cmake-build-debug/CMakeFiles/dns_receiver.dir
+/home/jvlk/projekty/dnstunnel/receiver/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/jvlk/projekty/dnstunnel/receiver/cmake-build-debug/CMakeFiles/rebuild_cache.dir
