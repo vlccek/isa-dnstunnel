@@ -3,38 +3,10 @@
 //
 
 #include <stdbool.h>
-#include "server.h"
+#include "client.h"
 #include "dns_receiver_events.h"
-#include "../sender/dns_sender_events.h"
+#include "dns_sender_events.h"
 
-#define PORT 8080
-#define MAXLINE 1024
-#define DNS_PORT 7654
-
-int createSocket(struct sockaddr_in *ipadd4, const char *ipadd)
-{/* create an Internet, datagram, socket using UDP */
-	int sock;
-	(sock) = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if ((sock) == -1) {
-		/* if socket failed to initialize, exit */
-		printf("Error Creating Socket");
-		exit(EXIT_FAILURE);
-	}
-
-	/* Zero out socket address */
-	memset(ipadd4, 0, sizeof(*ipadd4));
-
-	/* The address is IPv4 */
-	(*ipadd4).sin_family = AF_INET;
-
-	/* IPv4 addresses is a uint32_t, convert a string representation of the octets to the appropriate value */
-	(*ipadd4).sin_addr.s_addr = inet_addr(ipadd);
-
-	/* sockets are unsigned shorts, htons(x) ensures x is in network byte order, set the port to 7654 */
-	(*ipadd4).sin_port = htons(DNS_PORT);
-
-	return sock;
-}
 
 void ChangetoDnsNameFormat(char *dns, char *host)
 {
@@ -59,7 +31,7 @@ int insertQName(void *outBuff, const char *qname)
 	char tmpstr[maxQNameLen];
 	strncpy(tmpstr, qname, maxQNameLen);
 
-	ChangetoDnsNameFormat(outBuff, &tmpstr);
+	ChangetoDnsNameFormat(outBuff, (char *)&tmpstr);
 	return (int)strlen(outBuff) - 1;
 }
 
@@ -99,19 +71,27 @@ int insertQinfo(void *buff, int qclass, int qtype, int pacLen)
 
 bool readData(FILE *fp, const char *domain, char *buff)
 {
-	int i, count = 0;
+	memset(buff, 0, maxQNameLen);
+	int i, buffCount = 0, domainNameCount = 0;
 	unsigned maxDataLen = maxQNameLen - (unsigned)strlen(domain) - 1; // -1 becouse dot after domain
 
-	while (count < maxDataLen && i != EOF) {
+	char tmpbuff[maxSubDomainLenBeforeEncodes] = {0};
+	char *encoded_text;
+
+
+	while (((maxSubDomainLen * domainNameCount) + buffCount) < maxDataLen && i != EOF) {
 		while ((i = fgetc(fp)) != EOF) {
-			buff[count++] = (char)i;
-			if (count % maxSubDomainLen == 0) {
+			tmpbuff[buffCount++] = (char)i;
+			if (buffCount % maxSubDomainLenBeforeEncodes == 0) {
 				break;
 			}
 		}
 
-		buff[count++] = '.';
-		maxDataLen--;
+		encoded_text = base64_encode(tmpbuff);
+		strcat(buff, encoded_text);
+		strcat(buff, ".");
+		free(encoded_text);
+		buffCount = 0, domainNameCount++;
 	}
 	strcat(buff, domain);
 	return i != EOF;
@@ -142,7 +122,7 @@ int main(int argc, char *argv[])
 	int pacLen = 0; // lenght of packet
 
 	char example[254];
-	int sock = createSocket(&sa, "127.0.0.1");
+	int sock = createSocketClient(&sa, "127.0.0.1");
 
 
 	while (readData(dstFile, baseHost, example)) {

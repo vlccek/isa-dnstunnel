@@ -1,10 +1,9 @@
 //
-// Created by jvlk on 19.10.22.
+// Created by jvlk on 4.11.22.
 //
 
-#ifndef DNSTUNNEL_SERVER_H
-#define DNSTUNNEL_SERVER_H
-
+#ifndef COMMON_H
+#define COMMON_H
 #include "dns_receiver_events.h"
 #include <stdio.h>
 #include <sys/stat.h>
@@ -20,11 +19,23 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include "dns.h"
+#include "Base64/base64.h"
+#include "stdbool.h"
 
 #define InternalError(message, args...)    PrintErrorExit("%15s:%d | in %s() | " message "\n", 99 ,__FILE__, __LINE__,  __FUNCTION__, ## args)
 #define PrintErrorExit(format, ERR_CODE, ...)    do{  fprintf(stderr, format, __VA_ARGS__); fflush(stderr); exit(ERR_CODE);}while(0)
 
-const unsigned maxQNameLen = 253;
-const unsigned maxSubDomainLen = 63;
+#define PORT 8080
+#define MAXLINE 1024
+#define DNS_PORT 8888
 
-#endif //DNSTUNNEL_SERVER_H
+#define maxQNameLen 253
+
+#define maxSubDomainLen 63
+
+#define maxSubDomainLenBeforeEncodes ((maxSubDomainLen * 3 / 4) - 5) // from Base64 implematation
+
+
+int createSocketClient(struct sockaddr_in *ipadd4, const char *ipadd );
+int createSocketServer(struct sockaddr_in *ipadd4, const char *ipadd );
+#endif //COMMON_H

@@ -3,5 +3,9 @@ project(dnstunnel C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_executable(dns_receiver receiver/server.h receiver/server.c receiver/dns_receiver_events.c receiver/dns_receiver_events.h)
-add_executable(dns_sender sender/dns_sender_events.c sender/dns_sender_events.h)
+
+add_subdirectory(Base64)
+add_executable(dns_receiver common.c common.h server.c server.h dns_receiver_events.c dns_receiver_events.h)
+add_executable(dns_sender common.c common.h client.c client.h dns_sender_events.c dns_sender_events.h)
+
+target_link_libraries(dns_sender Base64lib)
