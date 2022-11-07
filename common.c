@@ -4,6 +4,8 @@
 
 #include "common.h"
 
+
+
 int createSocketClient(struct sockaddr_in *ipadd4, const char *ipadd)
 {/* create an Internet, datagram, socket using UDP */
 	int sock;
@@ -29,7 +31,7 @@ int createSocketClient(struct sockaddr_in *ipadd4, const char *ipadd)
 
 	return sock;
 }
-int createSocketServer(struct sockaddr_in *ipadd4, const char *ipadd)
+int createSocketServer(struct sockaddr_in *servaddr, const char *ipadd)
 {/* create an Internet, datagram, socket using UDP */
 	int sock;
 	(sock) = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -40,18 +42,18 @@ int createSocketServer(struct sockaddr_in *ipadd4, const char *ipadd)
 	}
 
 	/* Zero out socket address */
-	memset(ipadd4, 0, sizeof(*ipadd4));
+	memset(servaddr, 0, sizeof(*servaddr));
 
 	/* The address is IPv4 */
-	(*ipadd4).sin_family = AF_INET;
+	(*servaddr).sin_family = AF_INET;
 
 	/* IPv4 addresses is a uint32_t, convert a string representation of the octets to the appropriate value */
-	(*ipadd4).sin_addr.s_addr = INADDR_ANY;
+	(*servaddr).sin_addr.s_addr = INADDR_ANY;
 
 	/* sockets are unsigned shorts, htons(x) ensures x is in network byte order, set the port to 7654 */
-	(*ipadd4).sin_port = htons(DNS_PORT);
+	(*servaddr).sin_port = htons(DNS_PORT);
 
-	if (bind(sock, (const struct sockaddr *)ipadd4, sizeof(*ipadd4)) < 0) {
+	if (bind(sock, (const struct sockaddr *)servaddr, sizeof(*servaddr)) < 0) {
 		perror("bind failed");
 		exit(EXIT_FAILURE);
 	}

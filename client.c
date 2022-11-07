@@ -25,76 +25,94 @@ void ChangetoDnsNameFormat(char *dns, char *host)
 	*dns++ = '\0';
 }
 
-int insertQName(void *outBuff, const char *qname)
-{
-	outBuff = outBuff + sizeof(dns_header);
-	char tmpstr[maxQNameLen];
-	strncpy(tmpstr, qname, maxQNameLen);
 
-	ChangetoDnsNameFormat(outBuff, (char *)&tmpstr);
-	return (int)strlen(outBuff) - 1;
+int readChunck(FILE *fp, char buff[maxSubDomainLen])
+{
+	int i, buffCount = 0;
+	while ((i = fgetc(fp)) != EOF) {
+		buff[buffCount++] = (char)i;
+		if (buffCount == maxSubDomainLenBeforeEncodes) {
+			break;
+		}
+	}
+	buff[buffCount] = '\0';
+	return buffCount;
 }
 
-/*
- * Vrací delku paketu
+/* Read new chars from file and encodes it. Len is lenght of encoded text
  */
-int insertDnsHeader(void *outBuff, int id)
+char *readDecodesChunck(FILE *fp, int *len)
 {
-	dns_header *dns_h = (dns_header *)outBuff;
+	char buff[maxSubDomainLen + 1];
+	readChunck(fp, buff);
+	log("Reading text: `%s`", buff);
 
-	dns_h->id = (unsigned short)htons(id);
-	dns_h->qr = 0;
-	dns_h->opcode = 0;
-	dns_h->aa = 0;
-	dns_h->tc = 0;
-	dns_h->rd = 1;
-	dns_h->ra = 0;
-	dns_h->z = 0;
-	dns_h->ad = 0;
-	dns_h->cd = 0;
-	dns_h->rcode = 0;
-	dns_h->q_count = htons(1);
-	dns_h->ans_count = 0;
-	dns_h->auth_count = 0;
-	dns_h->add_count = 0;
+	char *encoded = base64_encode(buff);
+	log("Encoded to base64: `%s`", encoded);
+	*len = (int)strlen(encoded);
+	return encoded;
 
-	return sizeof(dns_header);
-}
-
-int insertQinfo(void *buff, int qclass, int qtype, int pacLen)
-{
-	dns_qestion *qinfo = (dns_qestion *)(buff + pacLen + 1);
-	qinfo->qclass = htons(qclass);
-	qinfo->qtype = htons(qtype);
-	return sizeof(dns_qestion);
 }
 
 bool readData(FILE *fp, const char *domain, char *buff)
 {
-	memset(buff, 0, maxQNameLen);
-	int i, buffCount = 0, domainNameCount = 0;
-	unsigned maxDataLen = maxQNameLen - (unsigned)strlen(domain) - 1; // -1 becouse dot after domain
+	char *qname = buff;
+	unsigned ussableQnameLen = maxQNameLen - (unsigned)strlen(domain) - 1; // -1 becouse dot after domain
+	char *decoded_text;
+	int chuckLen = 0, qnameC = 0;
 
-	char tmpbuff[maxSubDomainLenBeforeEncodes] = {0};
-	char *encoded_text;
-
-
-	while (((maxSubDomainLen * domainNameCount) + buffCount) < maxDataLen && i != EOF) {
-		while ((i = fgetc(fp)) != EOF) {
-			tmpbuff[buffCount++] = (char)i;
-			if (buffCount % maxSubDomainLenBeforeEncodes == 0) {
-				break;
-			}
+	while (qnameC + maxSubDomainLen < ussableQnameLen) {
+		decoded_text = readDecodesChunck(fp, &chuckLen);
+		if (chuckLen == 0) {
+			break;
 		}
+		qname[qnameC++] = (char)chuckLen;
+		strcpy(&qname[qnameC], decoded_text);
+		qnameC += chuckLen;
 
-		encoded_text = base64_encode(tmpbuff);
-		strcat(buff, encoded_text);
-		strcat(buff, ".");
-		free(encoded_text);
-		buffCount = 0, domainNameCount++;
+		free(decoded_text);
+
 	}
-	strcat(buff, domain);
-	return i != EOF;
+	char tmp[maxQNameLen];
+	char domaninTmp[maxQNameLen];
+	strcpy(domaninTmp, domain);
+	ChangetoDnsNameFormat(tmp, domaninTmp);
+	strcat(qname, tmp);
+	log("Qstring: \n		`%s`", qname);
+	return chuckLen != 0;
+}
+
+void sendInitPacket(int sock, char *dstFilePath, struct sockaddr *sa, char *domain)
+{
+
+	unsigned char buf[65536];
+
+	char data[maxQNameLen];
+	char *dstfileEncoded = base64_encode(dstFilePath);
+	sprintf(data, "%s.%s.%s", initIndicator, dstfileEncoded, domain);
+
+
+	char tmp[maxQNameLen];
+	ChangetoDnsNameFormat(tmp, data);
+	free(dstfileEncoded);
+
+	int pacLen = 0; // lenght of packet
+	pacLen += insertDnsHeader(&buf, getpid(), 0);
+	pacLen += insertQName(&buf, tmp);
+	pacLen += insertQinfo(&buf, 1, 1, pacLen);
+
+	int bytes_sent = sendto(sock, &buf, pacLen, 0, sa, (size_t)sizeof(*sa));
+	if (bytes_sent < 0) {
+		printf("Error sending packet: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
+	log("Init packet was sent. %d bytes sended", bytes_sent);
+	unsigned len;
+	recvfrom(sock, &buf, sizeof(buf), MSG_WAITALL, (struct sockaddr *)&sa, &len);
+
+	printf("%s", buf);
+
 }
 
 int main(int argc, char *argv[])
@@ -121,23 +139,24 @@ int main(int argc, char *argv[])
 	unsigned char buf[65536];
 	int pacLen = 0; // lenght of packet
 
-	char example[254];
+	char data[254];
 	int sock = createSocketClient(&sa, "127.0.0.1");
 
+	sendInitPacket(sock, dstFilePath, (struct sockaddr *)&sa, baseHost);
 
-	while (readData(dstFile, baseHost, example)) {
-		pacLen += insertDnsHeader(&buf, 0);
-		pacLen += insertQName(&buf, example);
+	while (readData(dstFile, baseHost, data)) {
+		pacLen += insertDnsHeader(&buf, 0, 0);
+		pacLen += insertQName(&buf, data);
 		pacLen += insertQinfo(&buf, 1, 1, pacLen);
 
-		bytes_sent =
-			sendto(sock, &buf, pacLen, 0, (struct sockaddr *)&sa, (size_t)sizeof sa);
+		bytes_sent = sendto(sock, &buf, pacLen, 0, (struct sockaddr *)&sa, (size_t)sizeof sa);
 		if (bytes_sent < 0) {
 			printf("Error sending packet: %s\n", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		pacLen = 0;
-		printf("%d bytes sended \n", bytes_sent);
+		log("%d bytes sended", bytes_sent);
+		memset(buf, 0, sizeof(buf));
 		fflush(stdout);
 	}
 
