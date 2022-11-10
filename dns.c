@@ -21,6 +21,7 @@
 #include "Base64/base64.h"
 #include "stdbool.h"
 
+
 int insertQName(void *outBuff, const char *qname)
 {
 	outBuff = outBuff + sizeof(dns_header);
@@ -44,22 +45,19 @@ int insertQinfo(void *buff, int qclass, int qtype, int pacLen)
 
 int insertAinfo(void *buff, int type, int class, int ttl, unsigned pacLen)
 {
-	answer_not_variable_len_members *ans = (answer_not_variable_len_members *)(buff + pacLen + 1);
+	dns_response *ans = (dns_response *)(buff + pacLen + 1);
 
-	ans->ans_type = 0xc0; // pointer
-	ans->name_offset = 0x0c;
 	ans->type = htons(1);
 	ans->qclass = htons(class);
 	ans->ttl = htonl(ttl);
-	ans->rdlength = sizeof(in_addr_t);
-	inet_pton(AF_INET, "10.10.10.10", &ans->rdlength + sizeof(ans->rdlength));
-	return sizeof(answer_not_variable_len_members) + sizeof(in_addr_t);
+	ans->rdlength = 0;
+	return sizeof(dns_response);
 }
 
 /*
  * Vrací delku paketu
  */
-int insertDnsHeader(void *outBuff, int id, int qr)
+int insertDnsHeader(void *outBuff, int id, int qr, int rc)
 {
 	dns_header *dns_h = (dns_header *)outBuff;
 
@@ -73,7 +71,7 @@ int insertDnsHeader(void *outBuff, int id, int qr)
 	dns_h->z = 0;
 	dns_h->ad = 0;
 	dns_h->cd = 0;
-	dns_h->rcode = 0;
+	dns_h->rcode = rc;
 	dns_h->q_count = htons(1);
 	dns_h->ans_count = 0;
 	dns_h->auth_count = 0;
@@ -84,3 +82,18 @@ int insertDnsHeader(void *outBuff, int id, int qr)
 	return sizeof(dns_header);
 }
 
+void extractDataFromDnsQ(char *in, char **qname, dns_header **header)
+{
+	*qname = in + sizeof(dns_header);
+	*header = (dns_header *)in;
+}
+
+void extractDataFromResponse(char *in, char **qname, dns_header **header, dns_response **resp)
+{
+	extractDataFromDnsQ(in, qname, header);
+
+	size_t qnamelen = strlen(*qname);
+
+	*resp = ((void *)*qname) + qnamelen;
+
+}

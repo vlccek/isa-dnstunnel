@@ -82,10 +82,24 @@ bool readData(FILE *fp, const char *domain, char *buff)
 	return chuckLen != 0;
 }
 
+
+/*
+ * true = good, false = not good
+ */
+bool checkConfirmationPac(char *buf)
+{
+	char *qname;
+	dns_header *dns_h;
+	dns_response *dns_r;
+	extractDataFromResponse(buf, &qname, &dns_h, &dns_r);
+
+	return dns_h->rcode == 0;
+}
+
 void sendInitPacket(int sock, char *dstFilePath, struct sockaddr *sa, char *domain)
 {
 
-	unsigned char buf[65536];
+	char buf[udpLen];
 
 	char data[maxQNameLen];
 	char *dstfileEncoded = base64_encode(dstFilePath);
@@ -97,22 +111,45 @@ void sendInitPacket(int sock, char *dstFilePath, struct sockaddr *sa, char *doma
 	free(dstfileEncoded);
 
 	int pacLen = 0; // lenght of packet
-	pacLen += insertDnsHeader(&buf, getpid(), 0);
+	pacLen += insertDnsHeader(&buf, getpid(), 0, refuseDNS);
 	pacLen += insertQName(&buf, tmp);
 	pacLen += insertQinfo(&buf, 1, 1, pacLen);
 
-	int bytes_sent = sendto(sock, &buf, pacLen, 0, sa, (size_t)sizeof(*sa));
-	if (bytes_sent < 0) {
-		printf("Error sending packet: %s\n", strerror(errno));
-		exit(EXIT_FAILURE);
+	unsigned len;
+	if (!sendRecv(sock, buf, pacLen, buf, udpLen, sa, &len)) {
+		PrintErrorExit("Server not responding %d", EXIT_FAILURE, len);
 	}
 
-	log("Init packet was sent. %d bytes sended", bytes_sent);
+	if (!checkConfirmationPac(buf)) {
+		PrintErrorExit("Confirmation message is not in good format. %d", EXIT_FAILURE, len);
+	};
+
+}
+
+void sendEndingPacket(int sock, struct sockaddr *sa, char *domain)
+{
+	log("Sending ending packet")
+	char buf[udpLen];
+	char data[maxQNameLen];
+	sprintf(data, "%s.%s", closeIndicator, domain);
+
+
+	char tmp[maxQNameLen];
+	ChangetoDnsNameFormat(tmp, data);
+
+	int pacLen = 0; // lenght of packet
+	pacLen += insertDnsHeader(&buf, getpid(), 0, refuseDNS);
+	pacLen += insertQName(&buf, tmp);
+	pacLen += insertQinfo(&buf, 1, 1, pacLen);
+
 	unsigned len;
-	recvfrom(sock, &buf, sizeof(buf), MSG_WAITALL, (struct sockaddr *)&sa, &len);
+	if (!sendRecv(sock, buf, pacLen, buf, udpLen, sa, &len)) {
+		PrintErrorExit("Server not responding %d", EXIT_FAILURE, len);
+	}
 
-	printf("%s", buf);
-
+	if (!checkConfirmationPac(buf)) {
+		PrintErrorExit("Confirmation message is not in good format. %d", EXIT_FAILURE, len);
+	};
 }
 
 int main(int argc, char *argv[])
@@ -120,15 +157,20 @@ int main(int argc, char *argv[])
 	if (!(argc == 4 || argc == 6)) {
 		InternalError("Not enought/too much params: %d. Expecting 4 or 6", argc - 1);
 	}
-	char *baseHost = NULL, *dstFilePath = NULL, *srcFilePath = NULL;
+	char *baseHost = NULL, *dstFilePath = NULL, *srcFilePath = NULL, *ipDnsServer;
 	int index = 0;
 	if (argc == 6) {
+		ipDnsServer = argv[3];
 		index = 2;
+	}
+	else {
+		// todo parser DNS IP
 	}
 	baseHost = argv[index + 1];
 	dstFilePath = argv[index + 2];
 	srcFilePath = argv[index + 3];
 
+	log("Opening file %s", srcFilePath);
 	FILE *dstFile = fopen(srcFilePath, "r");
 	if (dstFile == NULL) {
 		InternalError("Can't open file!  %s", srcFilePath);
@@ -136,8 +178,9 @@ int main(int argc, char *argv[])
 
 	struct sockaddr_in sa;
 	int bytes_sent;
-	unsigned char buf[65536];
+	char buf[65536];
 	int pacLen = 0; // lenght of packet
+	unsigned int len;
 
 	char data[254];
 	int sock = createSocketClient(&sa, "127.0.0.1");
@@ -145,7 +188,7 @@ int main(int argc, char *argv[])
 	sendInitPacket(sock, dstFilePath, (struct sockaddr *)&sa, baseHost);
 
 	while (readData(dstFile, baseHost, data)) {
-		pacLen += insertDnsHeader(&buf, 0, 0);
+		pacLen += insertDnsHeader(&buf, getpid(), 0, 0);
 		pacLen += insertQName(&buf, data);
 		pacLen += insertQinfo(&buf, 1, 1, pacLen);
 
@@ -157,8 +200,10 @@ int main(int argc, char *argv[])
 		pacLen = 0;
 		log("%d bytes sended", bytes_sent);
 		memset(buf, 0, sizeof(buf));
-		fflush(stdout);
+
 	}
+
+	sendEndingPacket(sock, (struct sockaddr *)&sa, baseHost);
 
 	close(sock); /* close the socket */
 	return 0;

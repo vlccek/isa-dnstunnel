@@ -6,6 +6,7 @@
 
 
 
+
 int createSocketClient(struct sockaddr_in *ipadd4, const char *ipadd)
 {/* create an Internet, datagram, socket using UDP */
 	int sock;
@@ -59,4 +60,50 @@ int createSocketServer(struct sockaddr_in *servaddr, const char *ipadd)
 	}
 
 	return sock;
+}
+
+void setTimeout(int sockID, int waiting, int waitingmss)
+{
+	struct timeval tv;
+	tv.tv_sec = waiting;
+	tv.tv_usec = waitingmss;
+	if (setsockopt(sockID, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+		perror("Error");
+	}
+
+}
+
+/*
+ * Send buffsend, waits TIMEOUT seconds if not responds. repeat this ATTEMPTS times. Recived data are in buffrec.
+ * If return true buffrec is not empty
+ */
+bool sendRecv(int sock,
+			  char *buffsend,
+			  int buffsendlen, // how many will be sent
+			  char *buffrec,
+			  size_t buffSizeRec,
+			  struct sockaddr *sa,
+			  unsigned int *saSize)
+{
+
+	int bytes_sent;
+	setTimeout(sock, TIMEOUT, 0);
+
+	for (int i = 0; i < ATTEMPTS; i++) {
+		log("Waiting for answer from server, attempt %d/%d ...", i + 1, ATTEMPTS);
+		bytes_sent = sendto(sock, buffsend, buffsendlen, 0, sa, (size_t)sizeof(*sa));
+		if (bytes_sent < 0) {
+			printf("Error sending packet: %s\n", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		log("%d was sended", bytes_sent);
+
+		if (recvfrom(sock, buffrec, buffSizeRec, MSG_WAITALL, (struct sockaddr *)sa, saSize) > 0) {
+			return true;
+		}
+		log("Nothing recived. Trying again ...");
+	}
+
+	return false;
+
 }

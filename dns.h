@@ -3,16 +3,16 @@
 //
 
 #include <inttypes.h>
-#include "common.h"
+
 
 #ifndef DNSTUNNEL_DNS_H
 #define DNSTUNNEL_DNS_H
+#include "common.h"
 
-int insertDnsHeader(void *outBuff, int id, int qr);
-int insertQName(void *outBuff, const char *qname);
-int insertName(void *outBuff, const char *qname);
-int insertQinfo(void *buff, int qclass, int qtype, int pacLen);
-int insertAinfo(void *buff, int type, int class, int ttl, unsigned pacLen);
+#define refuseDNS 0x05
+
+
+
 
 typedef struct __attribute__((packed))
 {
@@ -46,13 +46,18 @@ typedef struct __attribute__((packed))
 typedef struct __attribute__((__packed__))
 {
 	// Name - same as in qestion
-  uint8_t ans_type;
-  uint8_t name_offset;
   uint16_t type;
   uint16_t qclass;
   uint32_t ttl;
   uint16_t rdlength;
 	// RDATA
-} answer_not_variable_len_members;
+} dns_response;
 
+int insertDnsHeader(void *outBuff, int id, int qr , int rc);
+int insertQName(void *outBuff, const char *qname);
+int insertName(void *outBuff, const char *qname);
+int insertQinfo(void *buff, int qclass, int qtype, int pacLen);
+int insertAinfo(void *buff, int type, int class, int ttl, unsigned pacLen);
+void extractDataFromDnsQ(char *in, char **qname, dns_header **header);
+void extractDataFromResponse(char *in, char **qname, dns_header **header, dns_response** resp);
 #endif //DNSTUNNEL_DNS_H

@@ -28,6 +28,7 @@ filesDescriptorTable_t descriptorTable = {NULL, 0, 0, NULL, NULL};
 void reallocDesTable();
 char *extractFileName(const char *qname);
 char *exctractBaseDomain(const char *qname);
+bool isQnameBaseDomain(const int *pid, const char *qname);
 FILE *getFileDescriptor(int id)
 {
 	for (int i = 0; i < descriptorTable.activeTransfers; i++) {
@@ -160,7 +161,7 @@ char **getDataFromDnsPacket(char *in, int *pid)
 		return NULL;
 	}
 
-	char **output = malloc(sizeof(char *) * 5); // todo move it
+	char **output = malloc(sizeof(char *) * MAXSUBDOMAINWITHDATA); // todo move it
 	int i = 0;
 	int nextNameLen = 0;
 	char encodedStr[maxSubDomainLen], *decodedChunk;
@@ -168,6 +169,11 @@ char **getDataFromDnsPacket(char *in, int *pid)
 	do {
 		// printf("%d", nextNameLen);
 		nextNameLen = (int)*(qname++);
+		if (isQnameBaseDomain(pid, qname)) {
+			for (int l = i; l < MAXSUBDOMAINWITHDATA; l++)
+				output[l] = NULL;
+			break;
+		}
 		strncpy(encodedStr, qname, nextNameLen);
 		encodedStr[nextNameLen] = '\0';
 		qname += nextNameLen;
@@ -180,12 +186,8 @@ char **getDataFromDnsPacket(char *in, int *pid)
 
 	return output;
 }
-
-void extractDataFromDnspacket(char *in, char **qname, dns_header **header)
-{
-	*qname = in + sizeof(dns_header);
-	*header = (dns_header *)in;
-}
+bool isQnameBaseDomain(const int *pid, const char *qname)
+{ return strcmp(qname, getBaseDomain(*pid)) == 0; }
 
 int main(int argc, char *argv[])
 {
@@ -210,12 +212,12 @@ int main(int argc, char *argv[])
 		bytesRec = recvfrom(sock, bufRec, udpLen, MSG_WAITALL, (struct sockaddr *)&ca, &len);
 		log ("%d bytes was recived", bytesRec)
 		char **data = getDataFromDnsPacket(bufRec, &id);
-		extractDataFromDnspacket(bufRec, &qname, &header);
+		extractDataFromDnsQ(bufRec, &qname, &header);
 
 		if (data == NULL) {
-			log("Init packer id: %d, basedomain: %s", id, getBaseDomain(id));
+			log("Init packet id: %d, basedomain: %s", id, getBaseDomain(id));
 
-			pacLen += insertDnsHeader(bufSend, id, 1);
+			pacLen += insertDnsHeader(bufSend, id, 1, 0);
 			pacLen += insertName(bufSend, qname);
 			pacLen += insertAinfo(bufSend, 1, 1, 1000, pacLen);
 			bytesSend = sendto(sock, bufSend, pacLen, MSG_CONFIRM, (struct sockaddr *)&ca, (size_t)sizeof ca);
@@ -223,7 +225,7 @@ int main(int argc, char *argv[])
 			continue;
 		}
 		else {
-			for (int i = 0; i < 5; i++) {
+			for (int i = 0; i < 5 && data[i] != NULL; i++) {
 				fprintf(getFileDescriptor(id), "%s", data[i]);
 				printf("%s", data[i]);
 				fflush(stdout);
