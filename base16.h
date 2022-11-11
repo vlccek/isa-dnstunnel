@@ -4,6 +4,6 @@
 
 #ifndef BASE16_H
 #define BASE16_H
-char *tobase16(const char *in, int len);
-char *frombase16(const char *in, int len);
+unsigned char *tobase16(const unsigned char *in, int len);
+unsigned char *frombase16(const unsigned char *in, int len);
 #endif //BASE16_H

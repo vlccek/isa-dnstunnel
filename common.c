@@ -70,7 +70,6 @@ void setTimeout(int sockID, int waiting, int waitingmss)
 	if (setsockopt(sockID, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
 		perror("Error");
 	}
-
 }
 
 /*

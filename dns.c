@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include "dns.h"
-#include "Base64/base64.h"
+#include "base16.h"
 #include "stdbool.h"
 
 

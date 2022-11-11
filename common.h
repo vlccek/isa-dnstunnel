@@ -19,13 +19,13 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include "dns.h"
-#include "Base64/base64.h"
+#include "base16.h"
 #include "stdbool.h"
 
 #define InternalError(message, args...)    PrintErrorExit("%15s:%d | in %s() | " message "\n", 99 ,__FILE__, __LINE__,  __FUNCTION__, ## args)
 #define PrintErrorExit(format, ERR_CODE, ...)    do{  fprintf(stderr, format, __VA_ARGS__); fflush(stderr); exit(ERR_CODE);}while(0)
 #define checkNullPointer(p)   if ((p) == NULL){InternalError("Mememory err :("); exit(99);} // pro malloc
-#define debug 1
+#define debug 0
 
 #define initIndicator "init"
 #define closeIndicator "end"
@@ -47,7 +47,7 @@
 #define maxSubDomainLen 63
 #define udpLen 65536
 
-#define maxSubDomainLenBeforeEncodes ((maxSubDomainLen * 3 / 4) - 4) // from Base64 implematation
+#define maxSubDomainLenBeforeEncodes maxSubDomainLen/2 // from Base64 implematation
 
 
 int createSocketClient(struct sockaddr_in *ipadd4, const char *ipadd);

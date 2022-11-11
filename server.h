@@ -6,6 +6,11 @@
 #define SERVER_H
 #include "common.h"
 #include "dns.h"
-#include "Base64/base64.h"
+#include "base16.h"
 
+
+void reallocDesTable();
+char *extractFileName(const char *qname);
+char *exctractBaseDomain(const char *qname);
+bool isQnameBaseDomain(const int *pid, const char *qname);
 #endif //SERVER_H

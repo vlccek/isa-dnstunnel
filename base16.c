@@ -9,11 +9,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-char *tobase16(const char *in, int len)
+unsigned char *tobase16(const unsigned char *in, int len)
 {
 	char alph[] = "abcdefghijklmnop";
 
-	char *out = malloc(len * 2 + 1);
+	unsigned char *out = malloc(len * 2 + 1);
 
 	for (int i = 0; i < len; i++) {
 		out[i * 2] = alph[in[i] >> 4];
@@ -24,9 +24,9 @@ char *tobase16(const char *in, int len)
 
 }
 
-char *frombase16(const char *in, int len)
+unsigned char *frombase16(const unsigned char *in, int len)
 {
-	char *out = malloc(len / 2 + 1);
+	unsigned char *out = malloc(len / 2 + 1);
 	int l = 0;
 	for (int i = 0; i < len; i += 2) {
 		out[l++] = ((in[i] - 'a') * 16) + in[i + 1] - 'a';

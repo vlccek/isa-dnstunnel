@@ -26,15 +26,9 @@ void ChangetoDnsNameFormat(char *dns, char *host)
 }
 
 
-int readChunck(FILE *fp, char buff[maxSubDomainLen])
+size_t readChunck(FILE *fp, char buff[maxSubDomainLen])
 {
-	int i, buffCount = 0;
-	while ((i = fgetc(fp)) != EOF) {
-		buff[buffCount++] = (char)i;
-		if (buffCount == maxSubDomainLenBeforeEncodes) {
-			break;
-		}
-	}
+	size_t buffCount = fread(buff, (size_t)1, (size_t)31, fp);
 	buff[buffCount] = '\0';
 	return buffCount;
 }
@@ -44,12 +38,12 @@ int readChunck(FILE *fp, char buff[maxSubDomainLen])
 char *readDecodesChunck(FILE *fp, int *len)
 {
 	char buff[maxSubDomainLen + 1];
-	readChunck(fp, buff);
+	int subchunkLen = (int)readChunck(fp, buff);
 	log("Reading text: `%s`", buff);
 
-	char *encoded = base64_encode(buff);
-	log("Encoded to base64: `%s`", encoded);
-	*len = (int)strlen(encoded);
+	char *encoded = tobase16(buff, subchunkLen);
+	log("Encoded to base16: `%s`", encoded);
+	*len = subchunkLen * 2;
 	return encoded;
 
 }
@@ -57,17 +51,19 @@ char *readDecodesChunck(FILE *fp, int *len)
 bool readData(FILE *fp, const char *domain, char *buff)
 {
 	char *qname = buff;
+	memset(qname, 0, maxQNameLen);
 	unsigned ussableQnameLen = maxQNameLen - (unsigned)strlen(domain) - 1; // -1 becouse dot after domain
 	char *decoded_text;
 	int chuckLen = 0, qnameC = 0;
+	static bool last = false;
 
-	while (qnameC + maxSubDomainLen < ussableQnameLen) {
+	while (qnameC + maxSubDomainLen < ussableQnameLen && !last) {
 		decoded_text = readDecodesChunck(fp, &chuckLen);
 		if (chuckLen == 0) {
-			break;
+			last = true;
 		}
 		qname[qnameC++] = (char)chuckLen;
-		strcpy(&qname[qnameC], decoded_text);
+		memcpy(&qname[qnameC], decoded_text, chuckLen);
 		qnameC += chuckLen;
 
 		free(decoded_text);
@@ -79,7 +75,7 @@ bool readData(FILE *fp, const char *domain, char *buff)
 	ChangetoDnsNameFormat(tmp, domaninTmp);
 	strcat(qname, tmp);
 	log("Qstring: \n		`%s`", qname);
-	return chuckLen != 0;
+	return chuckLen != 0 || qnameC != 0;
 }
 
 
@@ -102,7 +98,7 @@ void sendInitPacket(int sock, char *dstFilePath, struct sockaddr *sa, char *doma
 	char buf[udpLen];
 
 	char data[maxQNameLen];
-	char *dstfileEncoded = base64_encode(dstFilePath);
+	char *dstfileEncoded = tobase16(dstFilePath, (int)strlen((dstFilePath)));
 	sprintf(data, "%s.%s.%s", initIndicator, dstfileEncoded, domain);
 
 
@@ -178,7 +174,7 @@ int main(int argc, char *argv[])
 
 	struct sockaddr_in sa;
 	int bytes_sent;
-	char buf[65536];
+	char buf[udpLen];
 	int pacLen = 0; // lenght of packet
 	unsigned int len;
 
@@ -199,7 +195,7 @@ int main(int argc, char *argv[])
 		}
 		pacLen = 0;
 		log("%d bytes sended", bytes_sent);
-		memset(buf, 0, sizeof(buf));
+		memset(&buf, 0, udpLen);
 
 	}
 
