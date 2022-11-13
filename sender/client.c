@@ -12,15 +12,29 @@ in_addr_t dest;
 
 int fileSize = 0;
 
+char *getOSdns() {
+    FILE *fp = fopen("/etc/resolv.conf", "r");
+    size_t c;
+    char *buffer;
+    char nsstr[] = "nameserver";
+    while (getline((char **) &buffer, &c, fp) != 0) {
+        if (strncmp(nsstr, buffer, strlen(nsstr)) == 0) {
+            buffer[strlen(buffer) - 1] = '\0';
+            return &buffer[strlen(nsstr)];
+        }
+    }
+    fclose(fp);
+}
+
+
 void
 parserArgs(int argc, char *const *argv, char **baseHost, char **dstFilePath, char **srcFilePath, char **ipDnsServer);
 
-size_t readChunck(FILE *fp, char buff[maxSubDomainLen])
-{
-	size_t buffCount = fread(buff, (size_t)1, (size_t)31, fp);
+size_t readChunck(FILE *fp, char buff[maxSubDomainLen]) {
+    size_t buffCount = fread(buff, (size_t) 1, (size_t) 31, fp);
     buff[buffCount] = '\0';
     fileSize += buffCount;
-	return buffCount;
+    return buffCount;
 }
 
 /* Read new chars from file and encodes it. Len is lenght of encoded text
@@ -207,7 +221,7 @@ parserArgs(int argc, char *const *argv, char **baseHost, char **dstFilePath, cha
         index = 2;
     } else {
         // todo read file
-        (*ipDnsServer) = "127.0.0.1";
+        (*ipDnsServer) = getOSdns();
     }
     (*baseHost) = argv[index + 1];
     (*dstFilePath) = argv[index + 2];
