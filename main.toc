@@ -1,0 +1,16 @@
+\babel@toc {czech}{}
+\contentsline {section}{\numberline {1}Popis mechanismu pro tunelování datových přenosů prostřednictvím DNS dotazů}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}DNS hlavička}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}DNS dotazy}{2}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Formát DNS dotazů}{2}{subsection.1.3}%
+\contentsline {section}{\numberline {2}Popis návrhu a implementace klientské a serverové aplikace}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Server}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Klient}{3}{subsection.2.2}%
+\contentsline {section}{\numberline {3}Komunikační protokol mezi klientem a serverem}{3}{section.3}%
+\contentsline {section}{\numberline {4}Způsob kódování dat a informací}{3}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Base16}{3}{subsection.4.1}%
+\contentsline {section}{\numberline {5}Způsob ukládání souborů na serveru}{3}{section.5}%
+\contentsline {section}{\numberline {6}Rozšíření}{4}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Více souběžných přenosů}{4}{subsection.6.1}%
+\contentsline {section}{\numberline {7}Omezení}{4}{section.7}%
+\contentsline {section}{\numberline {8}Popis testování a měření vytvořeného softwaru}{4}{section.8}%

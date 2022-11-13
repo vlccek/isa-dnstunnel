@@ -1,0 +1,144 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper, left=2cm, top=2cm, text={17cm, 26cm}]{geometry}
+\usepackage[czech]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{subfig}
+\usepackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{float}
+
+% appendix
+\makeatletter
+\g@addto@macro\appendix{%
+  \cleardoublepage
+  \section*{Přílohy}
+  \addtocontents{toc}{\protect\contentsline{section}{Přílohy}{}{}}%
+}
+\makeatother
+
+\NewDocumentCommand{\addquestion}{
+  m      % the question text
+  O{}    % the options to \includegraphics
+  m      % the file name
+}{%
+  \textbf{#1}
+  \begin{center}
+    \includegraphics[#2]{#3}  
+  \end{center}
+}
+
+\newcommand{\p}{\texttt{+}}
+\newcommand{\m}{\texttt{-}}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+    \Huge
+    \textsc{Vysoké učení technické v Brně\\
+    \huge
+    Fakulta informačních technologií}\\
+    \vspace{\stretch{0.382}}
+    \LARGE
+     Síťové aplikace a správa sítí
+    
+    \Huge
+    Tunelování datových přenosů přes DNS dotazy
+    
+       \begin{table}[h]
+        \centering
+        \Large
+        \begin{tabular}{rl}
+            {Jakub Vlk} & {xvlkja07} \\
+        \end{tabular}
+    \end{table}
+    \vfill
+    \Large
+    \today
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+
+\newpage
+
+\section{Popis mechanismu pro tunelování datových přenosů prostřednictvím DNS dotazů}
+Tunelování probíhá prostřednictví vkládání dat do DNS dotazů. Tyto dotazy jsou posílány na server, který umí tyto dotazy zpracovat. 
+\subsection{DNS hlavička}
+
+Každý DNS paket, jakýkoliv dotaz, jakákoliv komunikace protokolu DNS obsahuje DNS hlavičku ve tvaru viz obrázek \ref{obrz1}.
+\begin{figure}[H]
+\begin{center}
+ \includegraphics{img/DNSheader.png}
+ \caption{Hlavička DNS protokolu}
+ \label{obrz1}
+ \end{center}
+ \end{figure}
+V tomto projektu jsou využívány políčka \texttt{RCODE} pro potvrzování přijetí dat a  \label{ID} \texttt{ID} pro identifikaci přenosů od sebe. Používá se PID procesu. Ostatní políčka neobsahují speciální hodnoty. 
+
+\subsection{DNS dotazy}
+\begin{figure}[H]
+\begin{center}
+ \includegraphics{img/DNSr.png}
+ \caption{DNS dotaz a jeho části}
+ \end{center}
+ \end{figure}
+ Do \texttt{NAME} jsou ukládána přenášená data. Zde se ve standardní DNS komunikaci umisťuje doména, na kterou se klient táže. Jinak je dotaz vytvořen standardně.
+\subsection{Formát DNS dotazů}
+Aby byl DNS dotaz validní, je potřeba dodržet následující kritéria:
+\begin{itemize}
+\item  počet znaků celé dotazované domény nesmí být větší než 253 znaků (bajtů)
+\item  jedna subdoména nesmí být delší než 63 znaků
+\item  celý dotaz nesmí obsahovat jiné než alfanumerické znaky (velké i malé) a pomlčku
+\end{itemize}
+Kvůli těmto kriteriím jsou data dělena na části tak, aby ve výsledku části reprezentovaly subdomény maximální délky 63 znaků. Mimo to je taky třeba zajistit, aby znaky, reprezentující přenášená data, byly složeny pouze z dovolených znaků. Viz v sekci \ref{kodovani}.
+
+
+
+\section{Popis návrhu a implementace klientské a serverové aplikace}
+\subsection{Server}
+Server čeká dokud klient nepošle jakýkoliv dotaz. Po přijetí je dotaz přečten a je rozhodnuto a o jeho dalším osudu. Pokud se jedná o inicializační dotaz, je zaregistrován nový přenos a na dotaz je odpovězeno tak, jak popisuji v sekci \ref{protokol}. Pokud se nejedná o inicializační dotaz, je zjištěno, jestli je znám identifikátor v DNS hlavičce tohoto dotaz. Pokud ano, jsou data dekódována a zapsána do souboru. Více o tomto procesu v sekci \ref{ukladani}.
+
+\subsection{Klient}
+Klient pošle inicializační dotaz, poté čeká na potvrzení přijetí. Soubor je čten po částech a na každou část zvlášť je aplikováno překódování base16, více o částech a jiných detailech v sekci \ref{kodovani}. Potom jsou tyto překódované soubory vloženy do DNS dotazů a odeslány na server. Následně se čeká na odpověď. Po přečtení celého souboru je poslán ukončovací dotaz, který je popsán v sekci \ref{protokol}.
+
+
+
+\section{Komunikační protokol mezi klientem a serverem} \label{protokol}
+Každá komunikace je zahájena inicializačním dotazem. Tento dotaz je standardní DNS dotaz. Inicializační dotaz obsahuje jako nejvyšší subdoménu řetězec \texttt{init}. Příjemce odpoví na takový DNS dotaz prázdnou DNS odpovědí, ve které je však návratová hodnota (RC - sekce \ref{ID}) nastavena na 0 (bez chyby). Klient takovou odpověď přijme a pokračuje v komunikaci tak, že zašle první DNS dotaz obsahující data přenášeného souboru. Poté vyčká, než mu server (příjemce) odpoví stejným způsobem, jako na inicializační dotaz. Pokud odpověď nedorazí, zašle se dotaz znovu. Stane se tak 5 krát. Pokud odpověď ani tak nedorazí, je přenos ukončen. Pokud přijde správná odpověď, je zaslán další dotaz.
+
+Například pokud používáme bázovou doménu pro tunelování \texttt{example.com}, tak inicializační dotaz bude obsahovat DNS dotaz na doménu \texttt{init.example.com}. Tento inicializační dotaz obsahuje v hlavičce protokolu DNS v políčku ID (viz v sekci \ref{ID}) identifikátor, který se bude používat po celou dobu tohoto přenosu jako identifikátor přenosu. Po dokončení přenosu je zaslán ukončující dotaz s doménou \texttt{end.example.com}
+
+
+\section{Způsob kódování dat a informací} \label{kodovani}
+Kódovaní započne pokusem o načtením 31 bajtů, případně méně. Tato načtená data jsou překódována do base16 \ref{base16}. Načítá se pouze 31 bajtů, protože po použití base16 se množství bajtů zdvojnásobí. Potom jsou vložena do DNS dotazu ve správném formátu. To znamená, že začínají ASCII hodnotou vyjadřující počet znaků, který bude následovat. Tento proces se opakuje dokud je místo v právě tvořeném dotazu. Výsledek může vypadat takto: \texttt{<delka dat>data<delka dat2>data2<delka data3>data3<doména>}. Není nutné, aby subdomény reprezentující data byly dlouhé právě 62 znaků. Jedná se pouze o implementační zjednodušení. Příjemce dokáže zpracovat jakkoliv dlouhou subdoménu, avšak maximální délky 63 znaků (Limit DNS).
+
+\subsection{Base16} \label{base16}
+Toto překódování probíhá tak, že se prochází načtenými daty po 1 bajtu. Každý bajt je rozdělen na "polovinu" - 4 bity. Každá tato polovina je převedena na znak ze známého pole znaků, například \texttt{a-p}. Tento způsob překódování se nazývá base16. V projektu je použita moje vlastni implementace. 
+
+\section{Způsob ukládání souborů na serveru}\label{ukladani}
+Při přijmutí inicializačního DNS dotazu je vytvořen v seznamu souborových popisovačů nový položka. Krom tohoto popisovače obsahuje taky ID (více v \ref{ID}) a bázová doména. Při přijmutí datového dotazu je podle ID nalezen správný popisovač, do kterého se vypíšou právě příchozí data. Po přijmutí ukončujícího dotazu se z toho seznamu odstraní záznam nastavením popisovače na hodnotu NULL, tím indikuje že může být použit jiným přenosem. Tento to způsob implementace dovoluje aby probíhalo víc souběžných přenosů. Problematické u něj, že je v popisovači vyhledáváno lineárně - postupně. Seznam není nikterak řazen. V případě většího počtu přenosu by mohlo toto značně zpomalit přenosy. Seznam je dynamicky zvětšován v případě potřeby na dvojnásobek původní hodnoty. 
+
+Seznam ukládá hodnotu bázové třídy z důvodu, toho aby bylo možné program jednoduše modifikovat pro více bázových domén zároveň, případně nevyžadovat jakoukoliv bázovou doménu přímo.
+
+
+\section{Rozšíření}
+\subsection{Více souběžných přenosů}
+Je možné, aby probíhal souběžný přenos z více klientů. Přenos těchto souborů se může překrývat. Přenos může začít nebo skočit v průběhu druhého přenosu prakticky bez omezení. 
+\section{Omezení}
+\begin{description}
+    \item[Nejedinečné ID:]V případě, že by dva probíhající přenosy měly stejné ID, boudou přenesená data uložena do souboru toho přenosu, jehož inicializační dotaz přišel jako první.
+    \item[Moc dlouhá doména:]Předpokládá se, že doména, která je vstupním parametrem, ponechá v DNS dotazu místo alespoň pro 63 znaků. Pokud toto není dodrženo, chová se program nestandardně a nedefinovaně. Je na místě aby doména byla co možná nejkratší, tak aby se maximalizoval prostor pro data.
+    \item[Nevyužitý prostor:] Tím, že jsou data zapisována po 31 znacích, dochází k mírnému nevyužití šířky pásma, které poskytuje DNS dotaz. Více v sekci \ref{kodovani}.
+    \item[Validní doména:] Doména zadaná uživatelem musí být validní.
+    \item[Velikost parametru:] Parametr udávající cestu souboru ze strany klienta nesmí být delší, než 31 znaků. Toto není ověřováno.
+\end{description}
+
+
+
+\section{Popis testování a měření vytvořeného softwaru}
+Testoval jsem pomocí příkazové řádky 
+
+
+\end{document}
