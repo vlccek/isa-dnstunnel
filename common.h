@@ -25,7 +25,7 @@
 #define InternalError(message, args...)    PrintErrorExit("%15s:%d | in %s() | " message "\n", 99 ,__FILE__, __LINE__,  __FUNCTION__, ## args)
 #define PrintErrorExit(format, ERR_CODE, ...)    do{  fprintf(stderr, format, __VA_ARGS__); fflush(stderr); exit(ERR_CODE);}while(0)
 #define checkNullPointer(p)   if ((p) == NULL){InternalError("Mememory err :("); exit(99);} // pro malloc
-#define debug 0
+#define debug 1
 
 #define initIndicator "init"
 #define closeIndicator "end"

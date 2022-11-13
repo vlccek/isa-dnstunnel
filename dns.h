@@ -43,21 +43,29 @@ typedef struct __attribute__((packed))
 } dns_qestion;
 
 // Struct for answer's data witch dont have variable len
-typedef struct __attribute__((__packed__))
-{
-	// Name - same as in qestion
-  uint16_t type;
-  uint16_t qclass;
-  uint32_t ttl;
-  uint16_t rdlength;
-	// RDATA
+typedef struct __attribute__((__packed__)) {
+    // Name - same as in qestion
+    uint16_t type;
+    uint16_t qclass;
+    uint32_t ttl;
+    uint16_t rdlength;
+    // RDATA
 } dns_response;
 
-int insertDnsHeader(void *outBuff, int id, int qr , int rc);
+int insertDnsHeader(void *outBuff, int id, int qr, int rc);
+
 int insertQName(void *outBuff, const char *qname);
+
 int insertName(void *outBuff, const char *qname);
+
 int insertQinfo(void *buff, int qclass, int qtype, int pacLen);
+
 int insertAinfo(void *buff, int type, int class, int ttl, unsigned pacLen);
+
 void extractDataFromDnsQ(char *in, char **qname, dns_header **header);
-void extractDataFromResponse(char *in, char **qname, dns_header **header, dns_response** resp);
+
+void extractDataFromResponse(char *in, char **qname, dns_header **header, dns_response **resp);
+
+void changeToDnsNameFormat(char *dns, char *host);
+
 #endif //DNSTUNNEL_DNS_H

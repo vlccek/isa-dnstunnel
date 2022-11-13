@@ -81,7 +81,13 @@ int insertDnsHeader(void *outBuff, int id, int qr, int rc)
 
 	return sizeof(dns_header);
 }
-
+/**
+ * Parser DNS packet and return members
+ *
+ * @param in
+ * @param qname
+ * @param header
+ */
 void extractDataFromDnsQ(char *in, char **qname, dns_header **header)
 {
 	*qname = in + sizeof(dns_header);
@@ -96,4 +102,21 @@ void extractDataFromResponse(char *in, char **qname, dns_header **header, dns_re
 
 	*resp = ((void *)*qname) + qnamelen;
 
+}
+
+void changeToDnsNameFormat(char *dns, char *host)
+{
+	int lock = 0, i;
+	strcat((char *)host, ".");
+
+	for (i = 0; i < strlen((char *)host); i++) {
+		if (host[i] == '.') {
+			*dns++ = i - lock;
+			for (; lock < i; lock++) {
+				*dns++ = host[lock];
+			}
+			lock++; //or lock=i+1;
+		}
+	}
+	*dns++ = '\0';
 }
