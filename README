@@ -1,0 +1,21 @@
+Autor: Jakub Vlk, xvlkja07, Vytvořeno 14.11.2022
+# Projekt
+Projekt je složen ze dvou aplikacích napsaných v jazyce c. Klient a server pro tunelováni data přes DNS. Veškéré náležitosti v četně rozšířeních, nedokonalostí jsou popsaný v `manual.pdf`
+
+## Spuštění:
+
+### Server
+```bash
+dns_sender [-u UPSTREAM_DNS_IP] {BASE_HOST} {DST_FILEPATH} [SRC_FILEPATH]
+
+$ dns_sender -u 127.0.0.1 example.com data.txt ./data.txt
+$ echo "abc" | dns_sender -u 127.0.0.1 example.com data.txt
+```
+### klient
+
+```bash
+dns_receiver {BASE_HOST} {DST_DIRPATH}
+
+$ dns_receiver example.com ./data
+
+```
