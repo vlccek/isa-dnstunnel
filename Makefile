@@ -10,7 +10,7 @@ exec=flow
 login=xvlkja07
 NAME=manual
 SHELL=/usr/bin/env bash
-FILES=manual.pdf Makefile dnstest.sh
+FILES=manual.pdf Makefile README
 FOLDERS=reciver/ sender/
 
 all:

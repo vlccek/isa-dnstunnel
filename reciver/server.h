@@ -7,6 +7,7 @@
 #include "common.h"
 #include "dns.h"
 #include "base16.h"
+#include "dns_receiver_events.h"
 
 
 void reallocDesTable();
