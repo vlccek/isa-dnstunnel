@@ -4,7 +4,6 @@
 
 #ifndef COMMON_H
 #define COMMON_H
-#include "dns_receiver_events.h"
 #include <stdio.h>
 #include <sys/stat.h>
 #include <string.h>
@@ -33,14 +32,13 @@
 #define printlog(format, ...)    do{  fprintf(stderr, format, __VA_ARGS__);}while(0)
 #define log(message, args...)    if (debug == 1) {printlog("%15s:%d | in %s() | " message "\n", __FILE__, __LINE__,  __FUNCTION__, ## args);}
 
-#define PORT 8080
-#define ATTEMPTS 100
-#define TIMEOUT 10
+#define ATTEMPTS 5
+#define TIMEOUT 2
 
 #define MAXSUBDOMAINWITHDATA 5
 
 #define MAXLINE 1024
-#define DNS_PORT 7654
+#define DNS_PORT 53
 
 #define maxQNameLen 253
 
@@ -53,11 +51,11 @@
 int createSocketClient(struct sockaddr_in *ipadd4, const char *ipadd);
 int createSocketServer(struct sockaddr_in *servaddr, const char *ipadd);
 bool sendRecv(int sock,
-			  char *buffsend,
-			  int buffsendlen,
-			  char *buffrec,
-			  size_t buffSizeRec,
-			  struct sockaddr *sa,
-			  unsigned int *saSize);
+              char *buffsend,
+              int buffsendlen,
+              char *buffrec,
+              size_t buffSizeRec,
+              struct sockaddr *sa,
+              unsigned int *saSize);
 
 #endif //COMMON_H
